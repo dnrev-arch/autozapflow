@@ -1,0 +1,943 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistema de Leads - Palavras-Chave</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        header {
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            margin-bottom: 30px;
+        }
+
+        h1 {
+            color: #667eea;
+            font-size: 32px;
+            margin-bottom: 10px;
+        }
+
+        .subtitle {
+            color: #666;
+            font-size: 16px;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .stat-card {
+            background: white;
+            padding: 25px;
+            border-radius: 15px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            border-left: 5px solid #667eea;
+        }
+
+        .stat-card.warning {
+            border-left-color: #f59e0b;
+        }
+
+        .stat-card.success {
+            border-left-color: #10b981;
+        }
+
+        .stat-card.danger {
+            border-left-color: #ef4444;
+        }
+
+        .stat-card.info {
+            border-left-color: #3b82f6;
+        }
+
+        .stat-label {
+            color: #666;
+            font-size: 14px;
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .stat-value {
+            color: #1f2937;
+            font-size: 36px;
+            font-weight: bold;
+        }
+
+        .tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            background: white;
+            padding: 10px;
+            border-radius: 15px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+
+        .tab {
+            flex: 1;
+            padding: 15px 30px;
+            background: transparent;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 600;
+            color: #666;
+            transition: all 0.3s;
+        }
+
+        .tab.active {
+            background: #667eea;
+            color: white;
+        }
+
+        .tab:hover:not(.active) {
+            background: #f3f4f6;
+        }
+
+        .tab-content {
+            display: none;
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th {
+            background: #f9fafb;
+            padding: 15px;
+            text-align: left;
+            font-weight: 600;
+            color: #374151;
+            border-bottom: 2px solid #e5e7eb;
+        }
+
+        td {
+            padding: 15px;
+            border-bottom: 1px solid #e5e7eb;
+        }
+
+        tr:hover {
+            background: #f9fafb;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .badge.success {
+            background: #d1fae5;
+            color: #065f46;
+        }
+
+        .badge.warning {
+            background: #fef3c7;
+            color: #92400e;
+        }
+
+        .badge.danger {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+
+        .badge.info {
+            background: #dbeafe;
+            color: #1e40af;
+        }
+
+        .badge.gray {
+            background: #f3f4f6;
+            color: #374151;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+
+        .btn-primary {
+            background: #667eea;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #5568d3;
+        }
+
+        .btn-success {
+            background: #10b981;
+            color: white;
+        }
+
+        .btn-success:hover {
+            background: #059669;
+        }
+
+        .btn-danger {
+            background: #ef4444;
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background: #dc2626;
+        }
+
+        .btn-warning {
+            background: #f59e0b;
+            color: white;
+        }
+
+        .btn-warning:hover {
+            background: #d97706;
+        }
+
+        .btn-sm {
+            padding: 6px 12px;
+            font-size: 12px;
+        }
+
+        .funnel-editor {
+            background: #f9fafb;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #374151;
+        }
+
+        input, select, textarea {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e5e7eb;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: border-color 0.3s;
+        }
+
+        input:focus, select:focus, textarea:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .step-card {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 15px;
+            border: 2px solid #e5e7eb;
+        }
+
+        .step-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .step-number {
+            background: #667eea;
+            color: white;
+            width: 35px;
+            height: 35px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+        }
+
+        .keywords-box {
+            background: #fef3c7;
+            border: 2px solid #f59e0b;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        .keyword-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px;
+            background: white;
+            border-radius: 5px;
+            margin-bottom: 10px;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #9ca3af;
+        }
+
+        .empty-state-icon {
+            font-size: 48px;
+            margin-bottom: 20px;
+        }
+
+        .actions {
+            display: flex;
+            gap: 10px;
+        }
+
+        @media (max-width: 768px) {
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .tabs {
+                flex-direction: column;
+            }
+
+            table {
+                font-size: 12px;
+            }
+
+            th, td {
+                padding: 10px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🎯 Sistema de Leads com Palavras-Chave</h1>
+            <p class="subtitle">Gerenciamento de funis automáticos por palavra-chave</p>
+        </header>
+
+        <div class="stats-grid" id="statsGrid">
+            <!-- Stats serão inseridas aqui via JS -->
+        </div>
+
+        <div class="keywords-box">
+            <h3 style="margin-bottom: 15px;">🔑 Palavras-Chave Ativas</h3>
+            <div class="keyword-item">
+                <strong>"Oi Gaby quero te ajudar"</strong>
+                <span class="badge info">FRASE_CHAVE_1</span>
+            </div>
+            <div class="keyword-item">
+                <strong>"Oi Gaby não consigo te ajudar"</strong>
+                <span class="badge info">FRASE_CHAVE_2</span>
+            </div>
+            <div class="keyword-item">
+                <strong>"Oi gaby boa noite"</strong>
+                <span class="badge info">FRASE_CHAVE_3</span>
+            </div>
+            <div class="keyword-item">
+                <strong>"Oi gaby td bem"</strong>
+                <span class="badge info">FRASE_CHAVE_4</span>
+            </div>
+        </div>
+
+        <div class="tabs">
+            <button class="tab active" onclick="switchTab('conversations')">💬 Conversas</button>
+            <button class="tab" onclick="switchTab('funnels')">🎯 Funis</button>
+            <button class="tab" onclick="switchTab('logs')">📋 Logs</button>
+        </div>
+
+        <div id="conversationsTab" class="tab-content active">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <h2>Lista de Conversas</h2>
+                <button class="btn btn-primary" onclick="refreshConversations()">🔄 Atualizar</button>
+            </div>
+            <div id="conversationsList">
+                <!-- Tabela será inserida aqui -->
+            </div>
+        </div>
+
+        <div id="funnelsTab" class="tab-content">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <h2>Gerenciar Funis</h2>
+                <div class="actions">
+                    <button class="btn btn-success" onclick="importFunnels()">📥 Importar</button>
+                    <button class="btn btn-primary" onclick="exportFunnels()">📤 Exportar</button>
+                </div>
+            </div>
+            
+            <div id="funnelSelector" class="form-group">
+                <label>Selecionar Funil para Editar</label>
+                <select id="funnelSelect" onchange="loadFunnelEditor()">
+                    <option value="">-- Selecione um funil --</option>
+                    <option value="FRASE_CHAVE_1">FRASE_CHAVE_1 - Oi Gaby quero te ajudar</option>
+                    <option value="FRASE_CHAVE_2">FRASE_CHAVE_2 - Oi Gaby não consigo te ajudar</option>
+                    <option value="FRASE_CHAVE_3">FRASE_CHAVE_3 - Oi gaby boa noite</option>
+                    <option value="FRASE_CHAVE_4">FRASE_CHAVE_4 - Oi gaby td bem</option>
+                </select>
+            </div>
+
+            <div id="funnelEditor" style="display: none;">
+                <div class="funnel-editor">
+                    <h3 id="editorTitle">Editor de Funil</h3>
+                    
+                    <div id="stepsContainer"></div>
+
+                    <div style="margin-top: 20px; display: flex; gap: 10px;">
+                        <button class="btn btn-success" onclick="addStep()">➕ Adicionar Passo</button>
+                        <button class="btn btn-primary" onclick="saveFunnel()">💾 Salvar Funil</button>
+                        <button class="btn btn-danger" onclick="closeFunnelEditor()">❌ Fechar</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="logsTab" class="tab-content">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <h2>Logs do Sistema</h2>
+                <button class="btn btn-primary" onclick="refreshLogs()">🔄 Atualizar</button>
+            </div>
+            <div id="logsList" style="max-height: 600px; overflow-y: auto;">
+                <!-- Logs serão inseridos aqui -->
+            </div>
+        </div>
+    </div>
+
+    <input type="file" id="importFileInput" accept=".json" style="display: none;" onchange="handleImport(event)">
+
+    <script>
+        let currentFunnel = null;
+
+        // Trocar abas
+        function switchTab(tabName) {
+            document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+            
+            event.target.classList.add('active');
+            document.getElementById(tabName + 'Tab').classList.add('active');
+
+            if (tabName === 'conversations') refreshConversations();
+            if (tabName === 'logs') refreshLogs();
+        }
+
+        // Carregar estatísticas
+        async function loadStats() {
+            try {
+                const response = await fetch('/api/dashboard');
+                const data = await response.json();
+
+                if (data.success) {
+                    const stats = data.data;
+                    document.getElementById('statsGrid').innerHTML = `
+                        <div class="stat-card info">
+                            <div class="stat-label">Conversas Ativas</div>
+                            <div class="stat-value">${stats.active_conversations}</div>
+                        </div>
+                        <div class="stat-card warning">
+                            <div class="stat-label">Aguardando Resposta</div>
+                            <div class="stat-value">${stats.waiting_responses}</div>
+                        </div>
+                        <div class="stat-card danger">
+                            <div class="stat-label">Aguardando Palavra-Chave</div>
+                            <div class="stat-value">${stats.pending_keyword}</div>
+                        </div>
+                        <div class="stat-card success">
+                            <div class="stat-label">Concluídas</div>
+                            <div class="stat-value">${stats.completed_conversations}</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-label">Pausadas</div>
+                            <div class="stat-value">${stats.paused_conversations}</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-label">Total de Funis</div>
+                            <div class="stat-value">${stats.total_funnels}</div>
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                console.error('Erro ao carregar stats:', error);
+            }
+        }
+
+        // Carregar conversas
+        async function refreshConversations() {
+            try {
+                const response = await fetch('/api/conversations');
+                const data = await response.json();
+
+                if (data.success) {
+                    const conversations = data.data;
+                    
+                    if (conversations.length === 0) {
+                        document.getElementById('conversationsList').innerHTML = `
+                            <div class="empty-state">
+                                <div class="empty-state-icon">💬</div>
+                                <h3>Nenhuma conversa ativa</h3>
+                                <p>Aguardando leads enviarem palavras-chave...</p>
+                            </div>
+                        `;
+                        return;
+                    }
+
+                    let html = '<table><thead><tr>';
+                    html += '<th>Telefone</th>';
+                    html += '<th>Funil</th>';
+                    html += '<th>Passo</th>';
+                    html += '<th>Status</th>';
+                    html += '<th>Criado</th>';
+                    html += '<th>Ações</th>';
+                    html += '</tr></thead><tbody>';
+
+                    conversations.forEach(conv => {
+                        let status = '';
+                        if (conv.completed) status = '<span class="badge success">Concluído</span>';
+                        else if (conv.paused) status = '<span class="badge warning">Pausado</span>';
+                        else if (conv.waiting_for_keyword) status = '<span class="badge danger">Sem Palavra-Chave</span>';
+                        else if (conv.waiting_initial_delay) status = '<span class="badge info">Aguardando Delay (3min)</span>';
+                        else if (conv.waiting_for_response) status = '<span class="badge warning">Aguardando Resposta</span>';
+                        else status = '<span class="badge info">Ativo</span>';
+
+                        const funnelName = conv.funnelId || '-';
+                        const stepInfo = conv.stepIndex >= 0 ? `${conv.stepIndex + 1}` : '-';
+                        const createdDate = new Date(conv.createdAt).toLocaleString('pt-BR');
+
+                        html += '<tr>';
+                        html += `<td>${conv.phone}</td>`;
+                        html += `<td><span class="badge gray">${funnelName}</span></td>`;
+                        html += `<td>${stepInfo}</td>`;
+                        html += `<td>${status}</td>`;
+                        html += `<td>${createdDate}</td>`;
+                        html += '<td>';
+                        
+                        if (conv.waiting_for_keyword && !conv.funnelId) {
+                            html += `<button class="btn btn-sm btn-primary" onclick="selectFunnelForLead('${conv.phoneKey}')">📋 Escolher Funil</button>`;
+                        } else if (conv.paused) {
+                            html += `<button class="btn btn-sm btn-success" onclick="resumeConversation('${conv.phoneKey}')">▶️ Retomar</button>`;
+                        } else if (!conv.completed) {
+                            html += `<button class="btn btn-sm btn-warning" onclick="pauseConversation('${conv.phoneKey}')">⏸️ Pausar</button>`;
+                        }
+                        
+                        html += '</td>';
+                        html += '</tr>';
+                    });
+
+                    html += '</tbody></table>';
+                    document.getElementById('conversationsList').innerHTML = html;
+                }
+
+                await loadStats();
+            } catch (error) {
+                console.error('Erro ao carregar conversas:', error);
+            }
+        }
+
+        // Pausar conversa
+        async function pauseConversation(phoneKey) {
+            if (!confirm('Deseja pausar este funil?')) return;
+
+            try {
+                const response = await fetch(`/api/conversation/${phoneKey}/pause`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+                const data = await response.json();
+
+                if (data.success) {
+                    alert('✅ Funil pausado!');
+                    refreshConversations();
+                } else {
+                    alert('❌ Erro: ' + data.error);
+                }
+            } catch (error) {
+                alert('❌ Erro ao pausar: ' + error.message);
+            }
+        }
+
+        // Retomar conversa
+        async function resumeConversation(phoneKey) {
+            if (!confirm('Deseja retomar este funil?')) return;
+
+            try {
+                const response = await fetch(`/api/conversation/${phoneKey}/resume`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+                const data = await response.json();
+
+                if (data.success) {
+                    alert('✅ Funil retomado!');
+                    refreshConversations();
+                } else {
+                    alert('❌ Erro: ' + data.error);
+                }
+            } catch (error) {
+                alert('❌ Erro ao retomar: ' + error.message);
+            }
+        }
+
+        // Selecionar funil para lead
+        async function selectFunnelForLead(phoneKey) {
+            const funnelId = prompt('Escolha o funil:\n\n1 = FRASE_CHAVE_1\n2 = FRASE_CHAVE_2\n3 = FRASE_CHAVE_3\n4 = FRASE_CHAVE_4');
+            
+            if (!funnelId) return;
+
+            const funnelMap = {
+                '1': 'FRASE_CHAVE_1',
+                '2': 'FRASE_CHAVE_2',
+                '3': 'FRASE_CHAVE_3',
+                '4': 'FRASE_CHAVE_4'
+            };
+
+            const selectedFunnel = funnelMap[funnelId];
+            if (!selectedFunnel) {
+                alert('❌ Opção inválida!');
+                return;
+            }
+
+            try {
+                const response = await fetch(`/api/conversation/${phoneKey}/select-funnel`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ funnelId: selectedFunnel })
+                });
+                const data = await response.json();
+
+                if (data.success) {
+                    alert('✅ Funil iniciado com sucesso!');
+                    refreshConversations();
+                } else {
+                    alert('❌ Erro: ' + data.error);
+                }
+            } catch (error) {
+                alert('❌ Erro: ' + error.message);
+            }
+        }
+
+        // Carregar editor de funil
+        async function loadFunnelEditor() {
+            const funnelId = document.getElementById('funnelSelect').value;
+            if (!funnelId) {
+                document.getElementById('funnelEditor').style.display = 'none';
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/funnels');
+                const data = await response.json();
+
+                if (data.success) {
+                    currentFunnel = data.data.find(f => f.id === funnelId);
+                    
+                    if (currentFunnel) {
+                        document.getElementById('editorTitle').textContent = `Editando: ${currentFunnel.name}`;
+                        document.getElementById('funnelEditor').style.display = 'block';
+                        renderSteps();
+                    }
+                }
+            } catch (error) {
+                console.error('Erro ao carregar funil:', error);
+            }
+        }
+
+        // Renderizar passos
+        function renderSteps() {
+            const container = document.getElementById('stepsContainer');
+            container.innerHTML = '';
+
+            if (!currentFunnel || !currentFunnel.steps) return;
+
+            currentFunnel.steps.forEach((step, index) => {
+                const stepCard = document.createElement('div');
+                stepCard.className = 'step-card';
+                stepCard.innerHTML = `
+                    <div class="step-header">
+                        <div style="display: flex; align-items: center; gap: 15px;">
+                            <div class="step-number">${index + 1}</div>
+                            <select onchange="updateStepType(${index}, this.value)" style="width: 150px;">
+                                <option value="text" ${step.type === 'text' ? 'selected' : ''}>📝 Texto</option>
+                                <option value="image" ${step.type === 'image' ? 'selected' : ''}>🖼️ Imagem</option>
+                                <option value="video" ${step.type === 'video' ? 'selected' : ''}>🎥 Vídeo</option>
+                                <option value="audio" ${step.type === 'audio' ? 'selected' : ''}>🎵 Áudio</option>
+                                <option value="delay" ${step.type === 'delay' ? 'selected' : ''}>⏱️ Delay</option>
+                            </select>
+                        </div>
+                        <button class="btn btn-sm btn-danger" onclick="removeStep(${index})">🗑️</button>
+                    </div>
+
+                    ${step.type === 'text' || step.type === 'image' || step.type === 'video' ? `
+                        <div class="form-group">
+                            <label>Texto/Legenda</label>
+                            <textarea rows="3" onchange="updateStepText(${index}, this.value)">${step.text || ''}</textarea>
+                        </div>
+                    ` : ''}
+
+                    ${step.type === 'image' || step.type === 'video' || step.type === 'audio' ? `
+                        <div class="form-group">
+                            <label>URL da Mídia</label>
+                            <input type="text" value="${step.mediaUrl || ''}" onchange="updateStepMedia(${index}, this.value)">
+                        </div>
+                    ` : ''}
+
+                    ${step.type === 'delay' ? `
+                        <div class="form-group">
+                            <label>Segundos de Delay</label>
+                            <input type="number" value="${step.delaySeconds || 10}" onchange="updateStepDelay(${index}, this.value)">
+                        </div>
+                    ` : ''}
+
+                    <div class="form-group">
+                        <label>Delay Antes (segundos)</label>
+                        <input type="number" value="${step.delayBefore || 0}" onchange="updateStepDelayBefore(${index}, this.value)">
+                    </div>
+
+                    <div class="form-group">
+                        <label>
+                            <input type="checkbox" ${step.showTyping ? 'checked' : ''} onchange="updateStepTyping(${index}, this.checked)">
+                            Mostrar "digitando..." antes
+                        </label>
+                    </div>
+
+                    ${step.type !== 'delay' ? `
+                        <div class="form-group">
+                            <label>
+                                <input type="checkbox" ${step.waitForReply ? 'checked' : ''} onchange="updateStepWait(${index}, this.checked)">
+                                Aguardar resposta do cliente
+                            </label>
+                        </div>
+                    ` : ''}
+                `;
+                container.appendChild(stepCard);
+            });
+        }
+
+        // Funções de atualização dos passos
+        function updateStepType(index, value) {
+            currentFunnel.steps[index].type = value;
+            renderSteps();
+        }
+
+        function updateStepText(index, value) {
+            currentFunnel.steps[index].text = value;
+        }
+
+        function updateStepMedia(index, value) {
+            currentFunnel.steps[index].mediaUrl = value;
+        }
+
+        function updateStepDelay(index, value) {
+            currentFunnel.steps[index].delaySeconds = parseInt(value);
+        }
+
+        function updateStepDelayBefore(index, value) {
+            currentFunnel.steps[index].delayBefore = parseInt(value);
+        }
+
+        function updateStepTyping(index, value) {
+            currentFunnel.steps[index].showTyping = value;
+        }
+
+        function updateStepWait(index, value) {
+            currentFunnel.steps[index].waitForReply = value;
+        }
+
+        function addStep() {
+            if (!currentFunnel.steps) currentFunnel.steps = [];
+            
+            currentFunnel.steps.push({
+                id: 'step_' + Date.now(),
+                type: 'text',
+                text: '',
+                waitForReply: false,
+                delayBefore: 0,
+                showTyping: false
+            });
+            
+            renderSteps();
+        }
+
+        function removeStep(index) {
+            if (!confirm('Remover este passo?')) return;
+            currentFunnel.steps.splice(index, 1);
+            renderSteps();
+        }
+
+        // Salvar funil
+        async function saveFunnel() {
+            if (!currentFunnel) return;
+
+            try {
+                const response = await fetch('/api/funnels', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(currentFunnel)
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    alert('✅ Funil salvo com sucesso!');
+                } else {
+                    alert('❌ Erro: ' + data.error);
+                }
+            } catch (error) {
+                alert('❌ Erro ao salvar: ' + error.message);
+            }
+        }
+
+        function closeFunnelEditor() {
+            document.getElementById('funnelSelect').value = '';
+            document.getElementById('funnelEditor').style.display = 'none';
+            currentFunnel = null;
+        }
+
+        // Exportar funis
+        async function exportFunnels() {
+            try {
+                const response = await fetch('/api/funnels/export');
+                const blob = await response.blob();
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `leads-funis-${new Date().toISOString().split('T')[0]}.json`;
+                a.click();
+                alert('✅ Funis exportados!');
+            } catch (error) {
+                alert('❌ Erro ao exportar: ' + error.message);
+            }
+        }
+
+        // Importar funis
+        function importFunnels() {
+            document.getElementById('importFileInput').click();
+        }
+
+        async function handleImport(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            try {
+                const text = await file.text();
+                const data = JSON.parse(text);
+
+                const response = await fetch('/api/funnels/import', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    alert(`✅ Importação concluída!\n\nImportados: ${result.imported}\nIgnorados: ${result.skipped}`);
+                    loadFunnelEditor();
+                } else {
+                    alert('❌ Erro: ' + result.error);
+                }
+            } catch (error) {
+                alert('❌ Erro ao importar: ' + error.message);
+            }
+
+            event.target.value = '';
+        }
+
+        // Carregar logs
+        async function refreshLogs() {
+            try {
+                const response = await fetch('/api/logs?limit=100');
+                const data = await response.json();
+
+                if (data.success) {
+                    const logs = data.data;
+                    
+                    if (logs.length === 0) {
+                        document.getElementById('logsList').innerHTML = `
+                            <div class="empty-state">
+                                <div class="empty-state-icon">📋</div>
+                                <h3>Nenhum log ainda</h3>
+                            </div>
+                        `;
+                        return;
+                    }
+
+                    let html = '<table><thead><tr>';
+                    html += '<th>Horário</th>';
+                    html += '<th>Tipo</th>';
+                    html += '<th>Mensagem</th>';
+                    html += '</tr></thead><tbody>';
+
+                    logs.forEach(log => {
+                        const time = new Date(log.timestamp).toLocaleString('pt-BR');
+                        let badge = 'gray';
+                        
+                        if (log.type.includes('ERROR')) badge = 'danger';
+                        else if (log.type.includes('SUCCESS')) badge = 'success';
+                        else if (log.type.includes('WARNING')) badge = 'warning';
+                        else if (log.type.includes('START') || log.type.includes('DETECTED')) badge = 'info';
+
+                        html += '<tr>';
+                        html += `<td style="white-space: nowrap;">${time}</td>`;
+                        html += `<td><span class="badge ${badge}">${log.type}</span></td>`;
+                        html += `<td>${log.message}</td>`;
+                        html += '</tr>';
+                    });
+
+                    html += '</tbody></table>';
+                    document.getElementById('logsList').innerHTML = html;
+                }
+            } catch (error) {
+                console.error('Erro ao carregar logs:', error);
+            }
+        }
+
+        // Inicializar
+        loadStats();
+        refreshConversations();
+        setInterval(loadStats, 10000);
+        setInterval(() => {
+            const activeTab = document.querySelector('.tab.active').textContent;
+            if (activeTab.includes('Conversas')) refreshConversations();
+            if (activeTab.includes('Logs')) refreshLogs();
+        }, 10000);
+    </script>
+</body>
+</html>
