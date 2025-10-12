@@ -13,7 +13,7 @@ const DATA_FILE = path.join(__dirname, 'data', 'funnels.json');
 const CONVERSATIONS_FILE = path.join(__dirname, 'data', 'conversations.json');
 
 // Instâncias Evolution para Leads
-const INSTANCES = ['RM01', 'RM02'];
+const INSTANCES = ['RM01'];
 
 // Palavras-chave que iniciam funis
 const PALAVRAS_CHAVE = {
