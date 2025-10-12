@@ -6,7 +6,7 @@ const app = express();
 
 // ============ CONFIGURAÇÕES ============
 const EVOLUTION_BASE_URL = process.env.EVOLUTION_BASE_URL || 'https://evo.flowzap.fun';
-const EVOLUTION_API_KEY = process.env.EVOLUTION_API_KEY || 'SUA_API_KEY_AQUI';
+const EVOLUTION_API_KEY = process.env.EVOLUTION_API_KEY || '';
 const INITIAL_DELAY = 3 * 60 * 1000; // 3 minutos (mais humano)
 const PORT = process.env.PORT || 3001;
 const DATA_FILE = path.join(__dirname, 'data', 'funnels.json');
