@@ -8,7 +8,7 @@ const app = express();
 const EVOLUTION_BASE_URL = process.env.EVOLUTION_BASE_URL || 'https://evo.flowzap.fun';
 const EVOLUTION_API_KEY = process.env.EVOLUTION_API_KEY || '';
 const INITIAL_DELAY = 3 * 60 * 1000; // 3 minutos (mais humano)
-const PORT = process.env.PORT || 3001;
+const PORT = process.env.PORT || 3000;
 const DATA_FILE = path.join(__dirname, 'data', 'funnels.json');
 const CONVERSATIONS_FILE = path.join(__dirname, 'data', 'conversations.json');
 
@@ -32,7 +32,7 @@ let webhookLocks = new Map();
 let logs = [];
 let funis = new Map();
 let lastSuccessfulInstanceIndex = -1;
-let leadHistory = new Map(); // Histórico: qual funil cada lead já recebeu
+let leadHistory = new Map();
 
 // ============ FUNIS PADRÃO ============
 const defaultFunnels = {
@@ -312,18 +312,18 @@ async function sendToEvolution(instanceName, endpoint, payload) {
         });
         
         const headers = {
-    'Content-Type': 'application/json'
-};
+            'Content-Type': 'application/json'
+        };
 
-// Só adiciona apikey se tiver valor
-if (EVOLUTION_API_KEY && EVOLUTION_API_KEY !== '') {
-    headers['apikey'] = EVOLUTION_API_KEY;
-}
-
-const response = await axios.post(url, payload, {
-    headers: headers,
-    timeout: 15000
-});
+        // Só adiciona apikey se tiver valor
+        if (EVOLUTION_API_KEY && EVOLUTION_API_KEY !== '') {
+            headers['apikey'] = EVOLUTION_API_KEY;
+        }
+        
+        const response = await axios.post(url, payload, {
+            headers: headers,
+            timeout: 15000
+        });
         
         return { ok: true, data: response.data };
     } catch (error) {
@@ -365,49 +365,36 @@ async function sendVideo(remoteJid, videoUrl, caption, instanceName) {
     });
 }
 
+// ✅ ÁUDIO COMO ARQUIVO ORIGINAL (NÃO PTT)
 async function sendAudio(remoteJid, audioUrl, instanceName) {
     try {
-        addLog('AUDIO_DOWNLOAD_START', `Baixando áudio de ${audioUrl}`);
+        addLog('AUDIO_SEND_START', `Enviando áudio como arquivo original (URL)`, { phoneKey: remoteJid });
         
-        const audioResponse = await axios.get(audioUrl, {
-            responseType: 'arraybuffer',
-            timeout: 30000,
-            headers: {
-                'User-Agent': 'Mozilla/5.0'
-            }
-        });
-        
-        const base64Audio = Buffer.from(audioResponse.data, 'binary').toString('base64');
-        const audioBase64 = `data:audio/mpeg;base64,${base64Audio}`;
-        
-        addLog('AUDIO_CONVERTED', `Áudio convertido (${Math.round(base64Audio.length / 1024)}KB)`);
-        
-        const result = await sendToEvolution(instanceName, '/message/sendWhatsAppAudio', {
+        // Enviar como Media (arquivo de áudio comum, não PTT)
+        const result = await sendToEvolution(instanceName, '/message/sendMedia', {
             number: remoteJid.replace('@s.whatsapp.net', ''),
-            audio: audioBase64,
-            delay: 1200,
-            encoding: true
+            mediatype: 'audio',
+            media: audioUrl,
+            mimetype: 'audio/mpeg',
+            fileName: 'audio.mp3'
         });
         
         if (result.ok) {
+            addLog('AUDIO_SENT_SUCCESS', `Áudio enviado como arquivo original`, { phoneKey: remoteJid });
             return result;
         }
         
-        return await sendToEvolution(instanceName, '/message/sendMedia', {
-            number: remoteJid.replace('@s.whatsapp.net', ''),
-            mediatype: 'audio',
-            media: audioBase64,
-            mimetype: 'audio/mpeg'
-        });
+        addLog('AUDIO_ERROR', `Erro ao enviar áudio`, { phoneKey: remoteJid, error: result.error });
+        return result;
         
     } catch (error) {
-        addLog('AUDIO_ERROR', `Erro no áudio: ${error.message}`);
-        
-        return await sendToEvolution(instanceName, '/message/sendWhatsAppAudio', {
-            number: remoteJid.replace('@s.whatsapp.net', ''),
-            audio: audioUrl,
-            delay: 1200
+        addLog('AUDIO_ERROR', `Erro ao enviar áudio: ${error.message}`, { 
+            phoneKey: remoteJid,
+            url: audioUrl,
+            error: error.message 
         });
+        
+        return { success: false, error: error.message };
     }
 }
 
@@ -883,7 +870,6 @@ app.get('/api/conversations', (req, res) => {
     res.json({ success: true, data: conversationsList });
 });
 
-// API para pausar/retomar/escolher funil
 app.post('/api/conversation/:phoneKey/pause', (req, res) => {
     const { phoneKey } = req.params;
     const conversation = conversations.get(phoneKey);
@@ -896,7 +882,6 @@ app.post('/api/conversation/:phoneKey/pause', (req, res) => {
     conversation.pausedAt = new Date();
     conversations.set(phoneKey, conversation);
     
-    // Cancelar timeout de delay inicial se existir
     const timeout = initialDelayTimeouts.get(phoneKey);
     if (timeout) {
         clearTimeout(timeout.timeout);
@@ -922,7 +907,6 @@ app.post('/api/conversation/:phoneKey/resume', (req, res) => {
     
     addLog('CONVERSATION_RESUMED', `Funil retomado manualmente`, { phoneKey });
     
-    // Continuar de onde parou
     sendStep(phoneKey);
     
     res.json({ success: true, message: 'Funil retomado' });
@@ -942,7 +926,6 @@ app.post('/api/conversation/:phoneKey/select-funnel', (req, res) => {
         return res.status(400).json({ success: false, error: 'Funil não existe' });
     }
     
-    // Verificar se já recebeu este funil
     const history = leadHistory.get(phoneKey) || [];
     if (history.includes(funnelId)) {
         return res.status(400).json({ success: false, error: 'Lead já recebeu este funil' });
@@ -950,7 +933,6 @@ app.post('/api/conversation/:phoneKey/select-funnel', (req, res) => {
     
     addLog('FUNNEL_SELECTED_MANUALLY', `Funil ${funnelId} selecionado manualmente`, { phoneKey });
     
-    // Iniciar funil SEM delay (manual)
     conversation.funnelId = funnelId;
     conversation.stepIndex = 0;
     conversation.waiting_for_keyword = false;
@@ -958,11 +940,9 @@ app.post('/api/conversation/:phoneKey/select-funnel', (req, res) => {
     conversation.paused = false;
     conversations.set(phoneKey, conversation);
     
-    // Registrar no histórico
     history.push(funnelId);
     leadHistory.set(phoneKey, history);
     
-    // Enviar primeiro passo
     sendStep(phoneKey);
     
     res.json({ success: true, message: 'Funil iniciado' });
@@ -1007,13 +987,14 @@ app.listen(PORT, async () => {
     console.log('');
     console.log('✅ FUNCIONALIDADES:');
     console.log('  1. 4 Frases-chave configuradas');
-    console.log('  2. Áudio como PTT (Base64)');
+    console.log('  2. Áudio como ARQUIVO ORIGINAL (não PTT)');
     console.log('  3. Delays 100% respeitados');
     console.log('  4. Aguardar resposta funcional');
     console.log('  5. 1 funil por lead (nunca repete)');
     console.log('  6. Pausar/Retomar funil manual');
     console.log('  7. Escolher funil manualmente');
     console.log('  8. Import/Export de funis');
+    console.log('  9. Sem API Key (Evolution sem auth)');
     console.log('');
     console.log('🔑 PALAVRAS-CHAVE:');
     Object.entries(PALAVRAS_CHAVE).forEach(([keyword, funnel]) => {
