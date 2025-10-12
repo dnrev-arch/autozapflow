@@ -311,13 +311,19 @@ async function sendToEvolution(instanceName, endpoint, payload) {
             endpoint
         });
         
-        const response = await axios.post(url, payload, {
-            headers: {
-                'Content-Type': 'application/json',
-                'apikey': EVOLUTION_API_KEY
-            },
-            timeout: 15000
-        });
+        const headers = {
+    'Content-Type': 'application/json'
+};
+
+// Só adiciona apikey se tiver valor
+if (EVOLUTION_API_KEY && EVOLUTION_API_KEY !== '') {
+    headers['apikey'] = EVOLUTION_API_KEY;
+}
+
+const response = await axios.post(url, payload, {
+    headers: headers,
+    timeout: 15000
+});
         
         return { ok: true, data: response.data };
     } catch (error) {
