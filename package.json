@@ -1,11 +1,19 @@
 {
   "name": "sistema-leads",
   "version": "1.0.0",
-  "description": "Sistema de captura de leads com palavras-chave",
+  "description": "Sistema de captura de leads com palavras-chave via WhatsApp",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"
   },
+  "keywords": [
+    "whatsapp",
+    "leads",
+    "automation",
+    "evolution-api"
+  ],
+  "author": "Danilo",
+  "license": "MIT",
   "dependencies": {
     "express": "^4.18.2",
     "axios": "^1.6.0",
