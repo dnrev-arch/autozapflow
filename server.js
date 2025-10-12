@@ -327,17 +327,22 @@ async function sendToEvolution(instanceName, endpoint, payload) {
         
         return { ok: true, data: response.data };
     } catch (error) {
-        addLog('EVOLUTION_ERROR', `Erro em ${instanceName}`, { 
-            status: error.response?.status,
-            error: error.response?.data || error.message
-        });
-        
-        return { 
-            ok: false, 
-            error: error.response?.data || error.message,
-            status: error.response?.status
-        };
-    }
+    const errorDetails = error.response?.data || error.message;
+    const errorStatus = error.response?.status || 'NO_STATUS';
+    
+    addLog('EVOLUTION_ERROR', `Erro em ${instanceName}: [${errorStatus}] ${JSON.stringify(errorDetails)}`, { 
+        url,
+        endpoint,
+        status: errorStatus,
+        fullError: errorDetails
+    });
+    
+    return { 
+        ok: false, 
+        error: errorDetails,
+        status: errorStatus
+    };
+}
 }
 
 async function sendText(remoteJid, text, instanceName) {
