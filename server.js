@@ -302,47 +302,59 @@ function detectKeyword(messageText) {
     return null;
 }
 
-// ============ EVOLUTION API ============
+// ============ EVOLUTION API (CORRIGIDO) ============
 async function sendToEvolution(instanceName, endpoint, payload) {
     const url = EVOLUTION_BASE_URL + endpoint + '/' + instanceName;
     try {
-        addLog('EVOLUTION_REQUEST', `Enviando para ${instanceName}`, { 
-            url, 
-            endpoint
-        });
+        // ✅ DEBUG: Verificar se API Key foi carregada
+        addLog('DEBUG_API_KEY', `API Key presente: ${EVOLUTION_API_KEY ? 'SIM' : 'NÃO'} | Tamanho: ${EVOLUTION_API_KEY ? EVOLUTION_API_KEY.length : 0}`);
         
         const headers = {
             'Content-Type': 'application/json'
         };
 
-        // Só adiciona apikey se tiver valor
+        // ✅ CORREÇÃO: Adicionar múltiplos formatos de autenticação
         if (EVOLUTION_API_KEY && EVOLUTION_API_KEY !== '') {
             headers['apikey'] = EVOLUTION_API_KEY;
+            headers['Authorization'] = `Bearer ${EVOLUTION_API_KEY}`;
+            addLog('DEBUG_HEADER', `Headers configurados | apikey: ${EVOLUTION_API_KEY.substring(0, 10)}... | Bearer: ${EVOLUTION_API_KEY.substring(0, 10)}...`);
+        } else {
+            addLog('DEBUG_NO_KEY', `⚠️ ATENÇÃO: API Key não encontrada ou vazia!`);
         }
+        
+        addLog('EVOLUTION_REQUEST', `Enviando para ${instanceName}`, { 
+            url, 
+            endpoint,
+            hasApiKey: !!EVOLUTION_API_KEY
+        });
         
         const response = await axios.post(url, payload, {
             headers: headers,
             timeout: 15000
         });
         
+        addLog('EVOLUTION_SUCCESS', `✅ Sucesso em ${instanceName}`);
         return { ok: true, data: response.data };
+        
     } catch (error) {
-    const errorDetails = error.response?.data || error.message;
-    const errorStatus = error.response?.status || 'NO_STATUS';
-    
-    addLog('EVOLUTION_ERROR', `Erro em ${instanceName}: [${errorStatus}] ${JSON.stringify(errorDetails)}`, { 
-        url,
-        endpoint,
-        status: errorStatus,
-        fullError: errorDetails
-    });
-    
-    return { 
-        ok: false, 
-        error: errorDetails,
-        status: errorStatus
-    };
-}
+        const errorDetails = error.response?.data || error.message;
+        const errorStatus = error.response?.status || 'NO_STATUS';
+        
+        addLog('EVOLUTION_ERROR', `❌ Erro em ${instanceName}: [${errorStatus}] ${JSON.stringify(errorDetails)}`, { 
+            url,
+            endpoint,
+            status: errorStatus,
+            fullError: errorDetails,
+            hasApiKey: !!EVOLUTION_API_KEY,
+            apiKeyLength: EVOLUTION_API_KEY ? EVOLUTION_API_KEY.length : 0
+        });
+        
+        return { 
+            ok: false, 
+            error: errorDetails,
+            status: errorStatus
+        };
+    }
 }
 
 async function sendText(remoteJid, text, instanceName) {
@@ -988,6 +1000,7 @@ app.listen(PORT, async () => {
     console.log('Porta:', PORT);
     console.log('Evolution:', EVOLUTION_BASE_URL);
     console.log('Instâncias:', INSTANCES.join(', '));
+    console.log('API Key configurada:', EVOLUTION_API_KEY ? '✅ SIM' : '❌ NÃO');
     console.log('Delay inicial:', '3 minutos (humanizado)');
     console.log('');
     console.log('✅ FUNCIONALIDADES:');
@@ -999,7 +1012,7 @@ app.listen(PORT, async () => {
     console.log('  6. Pausar/Retomar funil manual');
     console.log('  7. Escolher funil manualmente');
     console.log('  8. Import/Export de funis');
-    console.log('  9. Sem API Key (Evolution sem auth)');
+    console.log('  9. Autenticação Evolution API (apikey + Bearer)');
     console.log('');
     console.log('🔑 PALAVRAS-CHAVE:');
     Object.entries(PALAVRAS_CHAVE).forEach(([keyword, funnel]) => {
