@@ -302,31 +302,19 @@ function detectKeyword(messageText) {
     return null;
 }
 
-// ============ EVOLUTION API (CORRIGIDO) ============
+// ============ EVOLUTION API ============
 async function sendToEvolution(instanceName, endpoint, payload) {
     const url = EVOLUTION_BASE_URL + endpoint + '/' + instanceName;
     try {
-        // ✅ DEBUG: Verificar se API Key foi carregada
-        addLog('DEBUG_API_KEY', `API Key presente: ${EVOLUTION_API_KEY ? 'SIM' : 'NÃO'} | Tamanho: ${EVOLUTION_API_KEY ? EVOLUTION_API_KEY.length : 0}`);
-        
         const headers = {
             'Content-Type': 'application/json'
         };
 
-        // ✅ CORREÇÃO: Adicionar múltiplos formatos de autenticação
         if (EVOLUTION_API_KEY && EVOLUTION_API_KEY !== '') {
             headers['apikey'] = EVOLUTION_API_KEY;
-            headers['Authorization'] = `Bearer ${EVOLUTION_API_KEY}`;
-            addLog('DEBUG_HEADER', `Headers configurados | apikey: ${EVOLUTION_API_KEY.substring(0, 10)}... | Bearer: ${EVOLUTION_API_KEY.substring(0, 10)}...`);
-        } else {
-            addLog('DEBUG_NO_KEY', `⚠️ ATENÇÃO: API Key não encontrada ou vazia!`);
         }
         
-        addLog('EVOLUTION_REQUEST', `Enviando para ${instanceName}`, { 
-            url, 
-            endpoint,
-            hasApiKey: !!EVOLUTION_API_KEY
-        });
+        addLog('EVOLUTION_REQUEST', `Enviando para ${instanceName}`, { url, endpoint });
         
         const response = await axios.post(url, payload, {
             headers: headers,
@@ -340,13 +328,11 @@ async function sendToEvolution(instanceName, endpoint, payload) {
         const errorDetails = error.response?.data || error.message;
         const errorStatus = error.response?.status || 'NO_STATUS';
         
-        addLog('EVOLUTION_ERROR', `❌ Erro em ${instanceName}: [${errorStatus}] ${JSON.stringify(errorDetails)}`, { 
+        addLog('EVOLUTION_ERROR', `❌ Erro em ${instanceName}: [${errorStatus}]`, { 
             url,
             endpoint,
             status: errorStatus,
-            fullError: errorDetails,
-            hasApiKey: !!EVOLUTION_API_KEY,
-            apiKeyLength: EVOLUTION_API_KEY ? EVOLUTION_API_KEY.length : 0
+            fullError: errorDetails
         });
         
         return { 
@@ -382,36 +368,64 @@ async function sendVideo(remoteJid, videoUrl, caption, instanceName) {
     });
 }
 
-// ✅ ÁUDIO COMO ARQUIVO ORIGINAL (NÃO PTT)
+// ✅ ÁUDIO COMO PTT (IDÊNTICO AO KIRVANO QUE FUNCIONA)
 async function sendAudio(remoteJid, audioUrl, instanceName) {
     try {
-        addLog('AUDIO_SEND_START', `Enviando áudio como arquivo original (URL)`, { phoneKey: remoteJid });
+        addLog('AUDIO_DOWNLOAD_START', `Baixando áudio de ${audioUrl}`, { phoneKey: remoteJid });
         
-        // Enviar como Media (arquivo de áudio comum, não PTT)
-        const result = await sendToEvolution(instanceName, '/message/sendMedia', {
+        // 1. Baixar o áudio da URL
+        const audioResponse = await axios.get(audioUrl, {
+            responseType: 'arraybuffer',
+            timeout: 30000,
+            headers: {
+                'User-Agent': 'Mozilla/5.0'
+            }
+        });
+        
+        // 2. Converter para Base64
+        const base64Audio = Buffer.from(audioResponse.data, 'binary').toString('base64');
+        const audioBase64 = `data:audio/mpeg;base64,${base64Audio}`;
+        
+        addLog('AUDIO_CONVERTED', `Áudio convertido para base64 (${Math.round(base64Audio.length / 1024)}KB)`, { phoneKey: remoteJid });
+        
+        // 3. Enviar como PTT usando base64
+        const result = await sendToEvolution(instanceName, '/message/sendWhatsAppAudio', {
             number: remoteJid.replace('@s.whatsapp.net', ''),
-            mediatype: 'audio',
-            media: audioUrl,
-            mimetype: 'audio/mpeg',
-            fileName: 'audio.mp3'
+            audio: audioBase64,
+            delay: 1200,
+            encoding: true
         });
         
         if (result.ok) {
-            addLog('AUDIO_SENT_SUCCESS', `Áudio enviado como arquivo original`, { phoneKey: remoteJid });
+            addLog('AUDIO_SENT_SUCCESS', `✅ Áudio PTT enviado com sucesso`, { phoneKey: remoteJid });
             return result;
         }
         
-        addLog('AUDIO_ERROR', `Erro ao enviar áudio`, { phoneKey: remoteJid, error: result.error });
-        return result;
+        // 4. Se falhou, tentar formato alternativo
+        addLog('AUDIO_RETRY_ALTERNATIVE', `Tentando formato alternativo`, { phoneKey: remoteJid });
+        
+        return await sendToEvolution(instanceName, '/message/sendMedia', {
+            number: remoteJid.replace('@s.whatsapp.net', ''),
+            mediatype: 'audio',
+            media: audioBase64,
+            mimetype: 'audio/mpeg'
+        });
         
     } catch (error) {
-        addLog('AUDIO_ERROR', `Erro ao enviar áudio: ${error.message}`, { 
+        addLog('AUDIO_ERROR', `Erro ao processar áudio: ${error.message}`, { 
             phoneKey: remoteJid,
             url: audioUrl,
             error: error.message 
         });
         
-        return { success: false, error: error.message };
+        // 5. Fallback final: tentar enviar URL direta
+        addLog('AUDIO_FALLBACK_URL', `Usando fallback com URL direta`, { phoneKey: remoteJid });
+        
+        return await sendToEvolution(instanceName, '/message/sendWhatsAppAudio', {
+            number: remoteJid.replace('@s.whatsapp.net', ''),
+            audio: audioUrl,
+            delay: 1200
+        });
     }
 }
 
@@ -995,7 +1009,7 @@ async function initializeData() {
 
 app.listen(PORT, async () => {
     console.log('='.repeat(70));
-    console.log('🚀 SISTEMA DE LEADS COM PALAVRAS-CHAVE v1.0');
+    console.log('🚀 SISTEMA DE LEADS COM PALAVRAS-CHAVE v1.0 [ÁUDIO PTT CORRIGIDO]');
     console.log('='.repeat(70));
     console.log('Porta:', PORT);
     console.log('Evolution:', EVOLUTION_BASE_URL);
@@ -1005,14 +1019,14 @@ app.listen(PORT, async () => {
     console.log('');
     console.log('✅ FUNCIONALIDADES:');
     console.log('  1. 4 Frases-chave configuradas');
-    console.log('  2. Áudio como ARQUIVO ORIGINAL (não PTT)');
+    console.log('  2. 🎤 Áudio como PTT (Base64) - IGUAL KIRVANO');
     console.log('  3. Delays 100% respeitados');
     console.log('  4. Aguardar resposta funcional');
     console.log('  5. 1 funil por lead (nunca repete)');
     console.log('  6. Pausar/Retomar funil manual');
     console.log('  7. Escolher funil manualmente');
     console.log('  8. Import/Export de funis');
-    console.log('  9. Autenticação Evolution API (apikey + Bearer)');
+    console.log('  9. Autenticação Evolution API (apikey)');
     console.log('');
     console.log('🔑 PALAVRAS-CHAVE:');
     Object.entries(PALAVRAS_CHAVE).forEach(([keyword, funnel]) => {
