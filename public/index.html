@@ -238,6 +238,19 @@
             font-size: 12px;
         }
 
+        /* ✅ NOVOS ESTILOS PARA BOTÕES DE MOVER */
+        .btn-move {
+            padding: 8px 12px;
+            font-size: 18px;
+            min-width: 40px;
+        }
+
+        .move-buttons {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
         .funnel-editor {
             background: #f9fafb;
             padding: 20px;
@@ -276,6 +289,20 @@
             border-radius: 10px;
             margin-bottom: 15px;
             border: 2px solid #e5e7eb;
+            display: flex;
+            gap: 15px;
+        }
+
+        /* ✅ NOVO: Container para botões de mover à esquerda */
+        .step-controls {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            gap: 5px;
+        }
+
+        .step-content {
+            flex: 1;
         }
 
         .step-header {
@@ -353,7 +380,7 @@
     <div class="container">
         <header>
             <h1>🎯 Sistema de Leads com Palavras-Chave</h1>
-            <p class="subtitle">Gerenciamento de funis automáticos por palavra-chave</p>
+            <p class="subtitle">⚡ Delay: 1 minuto | ✅ Foto+Texto Corrigido | ↕️ Mover Passos</p>
         </header>
 
         <div class="stats-grid" id="statsGrid">
@@ -533,7 +560,7 @@
                         if (conv.completed) status = '<span class="badge success">Concluído</span>';
                         else if (conv.paused) status = '<span class="badge warning">Pausado</span>';
                         else if (conv.waiting_for_keyword) status = '<span class="badge danger">Sem Palavra-Chave</span>';
-                        else if (conv.waiting_initial_delay) status = '<span class="badge info">Aguardando Delay (3min)</span>';
+                        else if (conv.waiting_initial_delay) status = '<span class="badge info">Aguardando Delay (1min)</span>';
                         else if (conv.waiting_for_response) status = '<span class="badge warning">Aguardando Resposta</span>';
                         else status = '<span class="badge info">Ativo</span>';
 
@@ -679,6 +706,37 @@
             }
         }
 
+        // ✅ NOVO: Função para mover passo
+        async function moveStep(index, direction) {
+            if (!currentFunnel) return;
+            
+            const toIndex = direction === 'up' ? index - 1 : index + 1;
+            
+            if (toIndex < 0 || toIndex >= currentFunnel.steps.length) {
+                alert('❌ Não é possível mover nesta direção!');
+                return;
+            }
+            
+            try {
+                const response = await fetch(`/api/funnels/${currentFunnel.id}/move-step`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ fromIndex: index, direction })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    currentFunnel = data.data;
+                    renderSteps();
+                } else {
+                    alert('❌ Erro: ' + data.error);
+                }
+            } catch (error) {
+                alert('❌ Erro ao mover: ' + error.message);
+            }
+        }
+
         // Renderizar passos
         function renderSteps() {
             const container = document.getElementById('stepsContainer');
@@ -689,62 +747,83 @@
             currentFunnel.steps.forEach((step, index) => {
                 const stepCard = document.createElement('div');
                 stepCard.className = 'step-card';
-                stepCard.innerHTML = `
-                    <div class="step-header">
-                        <div style="display: flex; align-items: center; gap: 15px;">
-                            <div class="step-number">${index + 1}</div>
-                            <select onchange="updateStepType(${index}, this.value)" style="width: 150px;">
-                                <option value="text" ${step.type === 'text' ? 'selected' : ''}>📝 Texto</option>
-                                <option value="image" ${step.type === 'image' ? 'selected' : ''}>🖼️ Imagem</option>
-                                <option value="video" ${step.type === 'video' ? 'selected' : ''}>🎥 Vídeo</option>
-                                <option value="audio" ${step.type === 'audio' ? 'selected' : ''}>🎵 Áudio</option>
-                                <option value="delay" ${step.type === 'delay' ? 'selected' : ''}>⏱️ Delay</option>
-                            </select>
-                        </div>
-                        <button class="btn btn-sm btn-danger" onclick="removeStep(${index})">🗑️</button>
+                
+                // ✅ NOVO: Botões de mover à esquerda
+                const moveButtons = `
+                    <div class="step-controls">
+                        <button class="btn btn-sm btn-primary btn-move" 
+                                onclick="moveStep(${index}, 'up')" 
+                                ${index === 0 ? 'disabled' : ''}
+                                title="Mover para cima">
+                            ↑
+                        </button>
+                        <button class="btn btn-sm btn-primary btn-move" 
+                                onclick="moveStep(${index}, 'down')" 
+                                ${index === currentFunnel.steps.length - 1 ? 'disabled' : ''}
+                                title="Mover para baixo">
+                            ↓
+                        </button>
                     </div>
-
-                    ${step.type === 'text' || step.type === 'image' || step.type === 'video' ? `
-                        <div class="form-group">
-                            <label>Texto/Legenda</label>
-                            <textarea rows="3" onchange="updateStepText(${index}, this.value)">${step.text || ''}</textarea>
+                `;
+                
+                stepCard.innerHTML = moveButtons + `
+                    <div class="step-content">
+                        <div class="step-header">
+                            <div style="display: flex; align-items: center; gap: 15px;">
+                                <div class="step-number">${index + 1}</div>
+                                <select onchange="updateStepType(${index}, this.value)" style="width: 150px;">
+                                    <option value="text" ${step.type === 'text' ? 'selected' : ''}>📝 Texto</option>
+                                    <option value="image" ${step.type === 'image' ? 'selected' : ''}>🖼️ Imagem</option>
+                                    <option value="video" ${step.type === 'video' ? 'selected' : ''}>🎥 Vídeo</option>
+                                    <option value="audio" ${step.type === 'audio' ? 'selected' : ''}>🎵 Áudio</option>
+                                    <option value="delay" ${step.type === 'delay' ? 'selected' : ''}>⏱️ Delay</option>
+                                </select>
+                            </div>
+                            <button class="btn btn-sm btn-danger" onclick="removeStep(${index})">🗑️</button>
                         </div>
-                    ` : ''}
 
-                    ${step.type === 'image' || step.type === 'video' || step.type === 'audio' ? `
+                        ${step.type === 'text' || step.type === 'image' || step.type === 'video' ? `
+                            <div class="form-group">
+                                <label>Texto/Legenda ${step.type !== 'text' ? '(será enviado junto com a mídia)' : ''}</label>
+                                <textarea rows="3" onchange="updateStepText(${index}, this.value)">${step.text || ''}</textarea>
+                            </div>
+                        ` : ''}
+
+                        ${step.type === 'image' || step.type === 'video' || step.type === 'audio' ? `
+                            <div class="form-group">
+                                <label>URL da Mídia</label>
+                                <input type="text" value="${step.mediaUrl || ''}" onchange="updateStepMedia(${index}, this.value)">
+                            </div>
+                        ` : ''}
+
+                        ${step.type === 'delay' ? `
+                            <div class="form-group">
+                                <label>Segundos de Delay</label>
+                                <input type="number" value="${step.delaySeconds || 10}" onchange="updateStepDelay(${index}, this.value)">
+                            </div>
+                        ` : ''}
+
                         <div class="form-group">
-                            <label>URL da Mídia</label>
-                            <input type="text" value="${step.mediaUrl || ''}" onchange="updateStepMedia(${index}, this.value)">
+                            <label>Delay Antes (segundos)</label>
+                            <input type="number" value="${step.delayBefore || 0}" onchange="updateStepDelayBefore(${index}, this.value)">
                         </div>
-                    ` : ''}
 
-                    ${step.type === 'delay' ? `
-                        <div class="form-group">
-                            <label>Segundos de Delay</label>
-                            <input type="number" value="${step.delaySeconds || 10}" onchange="updateStepDelay(${index}, this.value)">
-                        </div>
-                    ` : ''}
-
-                    <div class="form-group">
-                        <label>Delay Antes (segundos)</label>
-                        <input type="number" value="${step.delayBefore || 0}" onchange="updateStepDelayBefore(${index}, this.value)">
-                    </div>
-
-                    <div class="form-group">
-                        <label>
-                            <input type="checkbox" ${step.showTyping ? 'checked' : ''} onchange="updateStepTyping(${index}, this.checked)">
-                            Mostrar "digitando..." antes
-                        </label>
-                    </div>
-
-                    ${step.type !== 'delay' ? `
                         <div class="form-group">
                             <label>
-                                <input type="checkbox" ${step.waitForReply ? 'checked' : ''} onchange="updateStepWait(${index}, this.checked)">
-                                Aguardar resposta do cliente
+                                <input type="checkbox" ${step.showTyping ? 'checked' : ''} onchange="updateStepTyping(${index}, this.checked)">
+                                Mostrar "digitando..." antes
                             </label>
                         </div>
-                    ` : ''}
+
+                        ${step.type !== 'delay' ? `
+                            <div class="form-group">
+                                <label>
+                                    <input type="checkbox" ${step.waitForReply ? 'checked' : ''} onchange="updateStepWait(${index}, this.checked)">
+                                    Aguardar resposta do cliente
+                                </label>
+                            </div>
+                        ` : ''}
+                    </div>
                 `;
                 container.appendChild(stepCard);
             });
