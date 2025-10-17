@@ -7,7 +7,7 @@ const app = express();
 // ============ CONFIGURAÇÕES ============
 const EVOLUTION_BASE_URL = process.env.EVOLUTION_BASE_URL || 'https://evo.flowzap.fun';
 const EVOLUTION_API_KEY = process.env.EVOLUTION_API_KEY || '';
-const INITIAL_DELAY = 3 * 60 * 1000; // 3 minutos (mais humano)
+const INITIAL_DELAY = 1 * 60 * 1000; // ✅ ALTERADO: 1 MINUTO (era 3 minutos)
 const PORT = process.env.PORT || 3000;
 const DATA_FILE = path.join(__dirname, 'data', 'funnels.json');
 const CONVERSATIONS_FILE = path.join(__dirname, 'data', 'conversations.json');
@@ -350,22 +350,46 @@ async function sendText(remoteJid, text, instanceName) {
     });
 }
 
+// ✅ CORRIGIDO: Envio de imagem COM caption
 async function sendImage(remoteJid, imageUrl, caption, instanceName) {
-    return await sendToEvolution(instanceName, '/message/sendMedia', {
+    const payload = {
         number: remoteJid.replace('@s.whatsapp.net', ''),
         mediatype: 'image',
-        media: imageUrl,
-        caption: caption || ''
+        media: imageUrl
+    };
+    
+    // ✅ Só adiciona caption se existir
+    if (caption && caption.trim() !== '') {
+        payload.caption = caption;
+    }
+    
+    addLog('IMAGE_SEND', `Enviando imagem ${caption ? 'COM' : 'SEM'} caption`, { 
+        url: imageUrl,
+        hasCaption: !!caption 
     });
+    
+    return await sendToEvolution(instanceName, '/message/sendMedia', payload);
 }
 
+// ✅ CORRIGIDO: Envio de vídeo COM caption
 async function sendVideo(remoteJid, videoUrl, caption, instanceName) {
-    return await sendToEvolution(instanceName, '/message/sendMedia', {
+    const payload = {
         number: remoteJid.replace('@s.whatsapp.net', ''),
         mediatype: 'video',
-        media: videoUrl,
-        caption: caption || ''
+        media: videoUrl
+    };
+    
+    // ✅ Só adiciona caption se existir
+    if (caption && caption.trim() !== '') {
+        payload.caption = caption;
+    }
+    
+    addLog('VIDEO_SEND', `Enviando vídeo ${caption ? 'COM' : 'SEM'} caption`, { 
+        url: videoUrl,
+        hasCaption: !!caption 
     });
+    
+    return await sendToEvolution(instanceName, '/message/sendMedia', payload);
 }
 
 // ✅ ÁUDIO COMO PTT (IDÊNTICO AO KIRVANO QUE FUNCIONA)
@@ -449,12 +473,26 @@ async function sendWithFallback(phoneKey, remoteJid, type, text, mediaUrl, isFir
             try {
                 let result;
                 
-                if (type === 'text') result = await sendText(remoteJid, text, instanceName);
-                else if (type === 'image') result = await sendImage(remoteJid, mediaUrl, '', instanceName);
-                else if (type === 'image+text') result = await sendImage(remoteJid, mediaUrl, text, instanceName);
-                else if (type === 'video') result = await sendVideo(remoteJid, mediaUrl, '', instanceName);
-                else if (type === 'video+text') result = await sendVideo(remoteJid, mediaUrl, text, instanceName);
-                else if (type === 'audio') result = await sendAudio(remoteJid, mediaUrl, instanceName);
+                if (type === 'text') {
+                    result = await sendText(remoteJid, text, instanceName);
+                } 
+                else if (type === 'image') {
+                    result = await sendImage(remoteJid, mediaUrl, '', instanceName);
+                } 
+                else if (type === 'image+text') {
+                    // ✅ CORRIGIDO: Envia imagem COM caption
+                    result = await sendImage(remoteJid, mediaUrl, text, instanceName);
+                } 
+                else if (type === 'video') {
+                    result = await sendVideo(remoteJid, mediaUrl, '', instanceName);
+                } 
+                else if (type === 'video+text') {
+                    // ✅ CORRIGIDO: Envia vídeo COM caption
+                    result = await sendVideo(remoteJid, mediaUrl, text, instanceName);
+                } 
+                else if (type === 'audio') {
+                    result = await sendAudio(remoteJid, mediaUrl, instanceName);
+                }
                 
                 if (result && result.ok) {
                     stickyInstances.set(phoneKey, instanceName);
@@ -537,7 +575,7 @@ async function startFunnelWithDelay(phoneKey, remoteJid, funnelId, customerName)
     };
     
     conversations.set(phoneKey, conversation);
-    addLog('FUNNEL_START_DELAY', `Aguardando 3min para ${funnelId}`, { phoneKey });
+    addLog('FUNNEL_START_DELAY', `Aguardando 1min para ${funnelId}`, { phoneKey }); // ✅ ALTERADO
     
     // Registrar no histórico
     history.push(funnelId);
@@ -546,7 +584,7 @@ async function startFunnelWithDelay(phoneKey, remoteJid, funnelId, customerName)
     const timeout = setTimeout(async () => {
         const conv = conversations.get(phoneKey);
         if (conv && conv.funnelId === funnelId && !conv.paused && conv.waiting_initial_delay) {
-            addLog('INITIAL_DELAY_DONE', `3min acabou, iniciando funil`, { phoneKey });
+            addLog('INITIAL_DELAY_DONE', `1min acabou, iniciando funil`, { phoneKey }); // ✅ ALTERADO
             
             conv.waiting_initial_delay = false;
             conversations.set(phoneKey, conv);
@@ -611,7 +649,14 @@ async function sendStep(phoneKey) {
         addLog('STEP_TYPING', `Digitando ${typingSeconds}s`, { phoneKey });
         await new Promise(resolve => setTimeout(resolve, typingSeconds * 1000));
     } else {
-        result = await sendWithFallback(phoneKey, conversation.remoteJid, step.type, step.text, step.mediaUrl, isFirstMessage);
+        // ✅ CORRIGIDO: Detecta se tem texto + mídia automaticamente
+        let sendType = step.type;
+        if ((step.type === 'image' || step.type === 'video') && step.text && step.text.trim() !== '') {
+            sendType = step.type + '+text';
+            addLog('STEP_MEDIA_WITH_TEXT', `Enviando ${step.type} com legenda`, { phoneKey });
+        }
+        
+        result = await sendWithFallback(phoneKey, conversation.remoteJid, sendType, step.text, step.mediaUrl, isFirstMessage);
     }
     
     if (result.success) {
@@ -822,6 +867,35 @@ app.post('/api/funnels', (req, res) => {
     res.json({ success: true, message: 'Funil salvo', data: funnel });
 });
 
+// ✅ NOVO: Endpoint para mover passos
+app.post('/api/funnels/:funnelId/move-step', (req, res) => {
+    const { funnelId } = req.params;
+    const { fromIndex, direction } = req.body;
+    
+    const funnel = funis.get(funnelId);
+    if (!funnel) {
+        return res.status(404).json({ success: false, error: 'Funil não encontrado' });
+    }
+    
+    const toIndex = direction === 'up' ? fromIndex - 1 : fromIndex + 1;
+    
+    if (toIndex < 0 || toIndex >= funnel.steps.length) {
+        return res.status(400).json({ success: false, error: 'Movimento inválido' });
+    }
+    
+    // Trocar posições
+    const temp = funnel.steps[fromIndex];
+    funnel.steps[fromIndex] = funnel.steps[toIndex];
+    funnel.steps[toIndex] = temp;
+    
+    funis.set(funnelId, funnel);
+    saveFunnelsToFile();
+    
+    addLog('STEP_MOVED', `Passo ${fromIndex} movido para ${toIndex}`, { funnelId });
+    
+    res.json({ success: true, message: 'Passo movido', data: funnel });
+});
+
 app.get('/api/funnels/export', (req, res) => {
     try {
         const funnelsArray = Array.from(funis.values());
@@ -1009,37 +1083,25 @@ async function initializeData() {
 
 app.listen(PORT, async () => {
     console.log('='.repeat(70));
-    console.log('🚀 SISTEMA DE LEADS COM PALAVRAS-CHAVE v1.0 [ÁUDIO PTT CORRIGIDO]');
+    console.log('🚀 SISTEMA DE LEADS v2.0 [TODAS CORREÇÕES APLICADAS]');
     console.log('='.repeat(70));
     console.log('Porta:', PORT);
     console.log('Evolution:', EVOLUTION_BASE_URL);
     console.log('Instâncias:', INSTANCES.join(', '));
     console.log('API Key configurada:', EVOLUTION_API_KEY ? '✅ SIM' : '❌ NÃO');
-    console.log('Delay inicial:', '3 minutos (humanizado)');
+    console.log('Delay inicial:', '⚡ 1 MINUTO (era 3min)');
     console.log('');
-    console.log('✅ FUNCIONALIDADES:');
-    console.log('  1. 4 Frases-chave configuradas');
-    console.log('  2. 🎤 Áudio como PTT (Base64) - IGUAL KIRVANO');
-    console.log('  3. Delays 100% respeitados');
-    console.log('  4. Aguardar resposta funcional');
-    console.log('  5. 1 funil por lead (nunca repete)');
-    console.log('  6. Pausar/Retomar funil manual');
-    console.log('  7. Escolher funil manualmente');
-    console.log('  8. Import/Export de funis');
-    console.log('  9. Autenticação Evolution API (apikey)');
+    console.log('✅ CORREÇÕES APLICADAS:');
+    console.log('  1. ✅ Foto + texto CORRIGIDO (caption funciona)');
+    console.log('  2. ✅ Vídeo + texto CORRIGIDO (caption funciona)');
+    console.log('  3. ✅ Delay inicial: 1 minuto (era 3)');
+    console.log('  4. ✅ Botões mover passos (↑↓) adicionados');
+    console.log('  5. ✅ Endpoint /api/funnels/:id/move-step criado');
     console.log('');
     console.log('🔑 PALAVRAS-CHAVE:');
     Object.entries(PALAVRAS_CHAVE).forEach(([keyword, funnel]) => {
         console.log(`  "${keyword}" → ${funnel}`);
     });
-    console.log('');
-    console.log('📡 Endpoints:');
-    console.log('  POST /webhook/evolution       - Mensagens clientes');
-    console.log('  GET  /api/dashboard           - Estatísticas');
-    console.log('  GET  /api/conversations       - Lista conversas');
-    console.log('  POST /api/conversation/:id/pause    - Pausar funil');
-    console.log('  POST /api/conversation/:id/resume   - Retomar funil');
-    console.log('  POST /api/conversation/:id/select-funnel - Escolher funil');
     console.log('');
     console.log('🌐 Frontend: http://localhost:' + PORT);
     console.log('='.repeat(70));
